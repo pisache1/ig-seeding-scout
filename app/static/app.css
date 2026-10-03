@@ -322,3 +322,10 @@ code { font: 400 var(--t-label) var(--mono); background: var(--surface-3);
   .scroll { max-height: none; }
   .bar { grid-template-columns: 88px 1fr 56px; gap: 10px; }
 }
+
+.loginerr { margin: 0 0 14px; padding: 10px 13px; border-radius: 3px;
+            background: var(--sev-severe-bg); color: var(--sev-severe-ink);
+            font-size: var(--t-small); }
+.rail .out { margin-left: auto; font: 500 var(--t-small) var(--ui);
+             color: var(--ink-3); text-decoration: none; }
+.rail .out:hover { color: var(--ink); }

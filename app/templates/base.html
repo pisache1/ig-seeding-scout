@@ -19,6 +19,7 @@
          {% if request.url.path == href %}aria-current="page"{% endif %}>{{ label }}</a>
     {% endfor %}
   </nav>
+  {% if signed_in %}<a class="out" href="/logout">로그아웃</a>{% endif %}
 </header>
 
 <main>

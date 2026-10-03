@@ -1,0 +1,22 @@
+# Render blueprint. The disk is not optional: without it the SQLite file
+# lives in the container filesystem and every deploy wipes the roster,
+# the follower history and the audit of what you already screened.
+services:
+  - type: web
+    name: seeding-scout
+    runtime: docker
+    plan: starter          # free plans have no persistent disk
+    healthCheckPath: /healthz
+    disk:
+      name: scout-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: SCOUT_PASSWORD      # set this in the dashboard, not here
+        sync: false
+      - key: SCOUT_SECRET_KEY    # generate: python3 -c "import secrets;print(secrets.token_urlsafe(32))"
+        sync: false
+      - key: SCOUT_HTTPS_ONLY
+        value: "1"
+      - key: SCOUT_DB_PATH
+        value: /data/scout.db

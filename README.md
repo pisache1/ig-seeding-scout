@@ -39,6 +39,50 @@ pip install -r requirements.txt
 cp config.example.json config.json   # then fill it in
 ```
 
+## Running it somewhere other than your laptop
+
+The tool was written to run locally, where the only person who can reach it
+is you. On the internet that stops being true, so there is a password gate:
+nothing is served without a session.
+
+```bash
+export SCOUT_PASSWORD='a long passphrase'
+export SCOUT_SECRET_KEY="$(python3 -c 'import secrets;print(secrets.token_urlsafe(32))')"
+./run.sh
+```
+
+With no `SCOUT_PASSWORD` set, requests from anywhere except the local
+machine are **refused**, not served openly — deploying without configuring it
+fails closed rather than publishing your roster. Set `SCOUT_HTTPS_ONLY=1`
+behind TLS so the session cookie is not sent over plain HTTP. Failed logins
+lock an IP out for a minute after five tries.
+
+`/webhook` is exempt from the session check because Instagram cannot carry a
+cookie; it is gated by the `X-Hub-Signature-256` check instead, which needs
+`app_secret` configured.
+
+### Deploying
+
+`Dockerfile` and `render.yaml` are included, and the image runs anywhere
+that sets `$PORT`.
+
+**The disk matters more than the host.** The database is SQLite, so on a
+platform with an ephemeral filesystem — which includes most free tiers —
+every redeploy silently wipes the roster, the follower import history and
+the record of which followers you already screened. Mount a volume and point
+`SCOUT_DB_PATH` at it, as `render.yaml` does. GitHub Pages cannot host this
+at all: it serves static files only, and this is a Python server.
+
+What to set on the host:
+
+| | |
+|---|---|
+| `SCOUT_PASSWORD` | the login password |
+| `SCOUT_SECRET_KEY` | signs the session cookie; changing it logs everyone out |
+| `SCOUT_HTTPS_ONLY` | `1` behind TLS |
+| `SCOUT_DB_PATH` | a path on the mounted volume |
+| `IG_ACCESS_TOKEN`, `IG_USER_ID` | only if you have a token |
+
 ## The site
 
 ```bash

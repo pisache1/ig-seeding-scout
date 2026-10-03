@@ -35,5 +35,9 @@ class Config:
             env = os.getenv(f"IG_{key.upper()}")
             if env:
                 data[key] = env
+        # On a host the database must live on the mounted volume, not in the
+        # image, or every redeploy wipes it.
+        if os.getenv("SCOUT_DB_PATH"):
+            data["db_path"] = os.environ["SCOUT_DB_PATH"]
         known = {f for f in cls.__dataclass_fields__}
         return cls(**{k: v for k, v in data.items() if k in known})

@@ -9,14 +9,18 @@ from __future__ import annotations
 import hashlib
 import hmac
 import logging
+import os
 import tempfile
 from dataclasses import asdict
 from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, Request, Response, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
+
+from . import auth
 
 from .config import ROOT, Config
 from .db import (audience_imports, add_audience_import, connect, diff_imports,
@@ -49,6 +53,58 @@ ECONOMICS_INPUTS = [
 ]
 
 
+@app.middleware("http")
+async def require_login(request: Request, call_next):
+    path = request.url.path
+    if not auth.needs_auth(path):
+        return await call_next(request)
+
+    host = request.client.host if request.client else None
+    if not auth.configured_password():
+        # Fail closed: an unconfigured deployment must not serve the roster
+        # or the follower list to the internet.
+        if not auth.is_local(host):
+            return Response(
+                status_code=503,
+                content="SCOUT_PASSWORD 가 설정되지 않아 외부 접속을 막았습니다.",
+                media_type="text/plain; charset=utf-8",
+            )
+        return await call_next(request)
+
+    if request.session.get("ok"):
+        return await call_next(request)
+    return RedirectResponse("/login", status_code=303)
+
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_form(request: Request, error: str | None = None) -> HTMLResponse:
+    if request.session.get("ok"):
+        return RedirectResponse("/", status_code=303)
+    return _render(request, "login.html", {"error": error})
+
+
+@app.post("/login")
+async def login(request: Request, password: str = Form("")) -> Response:
+    ip = request.client.host if request.client else "?"
+    wait = auth.locked_out(ip)
+    if wait:
+        return _render(request, "login.html",
+                       {"error": f"시도가 너무 많습니다. {wait:.0f}초 후 다시 시도하세요."})
+    if auth.password_matches(password):
+        auth.clear_failures(ip)
+        request.session["ok"] = True
+        return RedirectResponse("/", status_code=303)
+    auth.record_failure(ip)
+    log.warning("로그인 실패 from %s", ip)
+    return _render(request, "login.html", {"error": "비밀번호가 맞지 않습니다."})
+
+
+@app.get("/logout")
+async def logout(request: Request) -> Response:
+    request.session.clear()
+    return RedirectResponse("/login", status_code=303)
+
+
 def client() -> InstagramClient:
     return InstagramClient(cfg.ig_user_id, cfg.access_token)
 
@@ -59,6 +115,7 @@ def _rows() -> list[dict]:
 
 
 def _render(request: Request, name: str, ctx: dict) -> HTMLResponse:
+    ctx.setdefault("signed_in", bool(request.session.get("ok")))
     return templates.TemplateResponse(request, name, ctx)
 
 
@@ -343,3 +400,16 @@ async def api_roster() -> JSONResponse:
 @app.get("/healthz")
 async def healthz() -> dict:
     return {"ok": True, "configured": bool(cfg.ig_user_id and cfg.access_token)}
+
+
+# Registered last so it ends up outermost: Starlette runs the most recently
+# added middleware first, and require_login below needs request.session to
+# already be populated by the time it runs.
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=auth.secret_key(),
+    session_cookie="scout_session",
+    same_site="lax",
+    https_only=bool(os.getenv("SCOUT_HTTPS_ONLY")),
+    max_age=60 * 60 * 24 * 14,
+)
