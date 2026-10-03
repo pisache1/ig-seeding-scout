@@ -51,7 +51,10 @@ CREATE TABLE IF NOT EXISTS audience_imports (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
     taken_at  TEXT NOT NULL,
     source    TEXT,
-    member_count INTEGER
+    member_count INTEGER,
+    -- followers / following / requests_received / requests_sent / unfollowed.
+    -- Diffs only ever compare imports of the same kind.
+    kind      TEXT DEFAULT 'followers'
 );
 
 CREATE TABLE IF NOT EXISTS audience_members (
@@ -96,6 +99,9 @@ def connect(path: str):
 
 def _migrate(conn) -> None:
     have = {r["name"] for r in conn.execute("PRAGMA table_info(snapshots)")}
+    have_imports = {r["name"] for r in conn.execute("PRAGMA table_info(audience_imports)")}
+    if "kind" not in have_imports:
+        conn.execute("ALTER TABLE audience_imports ADD COLUMN kind TEXT DEFAULT 'followers'")
     for column, ddl in (
         ("measured_reach", "REAL DEFAULT 0"),
         ("quoted_rate", "REAL DEFAULT 0"),
@@ -202,10 +208,12 @@ def latest_scores(conn, limit: int = 500) -> list[dict]:
 
 # --- audience (your own follower list) -------------------------------------
 
-def add_audience_import(conn, members: list[dict], source: str) -> int:
+def add_audience_import(conn, members: list[dict], source: str,
+                        kind: str = "followers") -> int:
     cur = conn.execute(
-        "INSERT INTO audience_imports (taken_at, source, member_count) VALUES (?,?,?)",
-        (now_iso(), source, len(members)),
+        "INSERT INTO audience_imports (taken_at, source, member_count, kind)"
+        " VALUES (?,?,?,?)",
+        (now_iso(), source, len(members), kind),
     )
     import_id = cur.lastrowid
     conn.executemany(
@@ -216,10 +224,20 @@ def add_audience_import(conn, members: list[dict], source: str) -> int:
     return import_id
 
 
-def previous_import(conn, before_id: int) -> int | None:
+def previous_import(conn, before_id: int, kind: str | None = None) -> int | None:
+    """The previous import *of the same kind*.
+
+    Diffing a following list against a followers list would report every
+    account as both gained and lost.
+    """
+    if kind is None:
+        row = conn.execute("SELECT kind FROM audience_imports WHERE id = ?",
+                           (before_id,)).fetchone()
+        kind = row["kind"] if row else "followers"
     row = conn.execute(
-        "SELECT id FROM audience_imports WHERE id < ? ORDER BY id DESC LIMIT 1",
-        (before_id,),
+        "SELECT id FROM audience_imports WHERE id < ? AND kind IS ?"
+        " ORDER BY id DESC LIMIT 1",
+        (before_id, kind),
     ).fetchone()
     return row["id"] if row else None
 
@@ -268,11 +286,29 @@ def record_screened(conn, handle: str, is_professional: bool,
     )
 
 
-def latest_import(conn) -> dict | None:
-    row = conn.execute(
-        "SELECT * FROM audience_imports ORDER BY id DESC LIMIT 1"
-    ).fetchone()
+def latest_import(conn, kind: str | None = None) -> dict | None:
+    if kind:
+        row = conn.execute(
+            "SELECT * FROM audience_imports WHERE kind IS ? ORDER BY id DESC LIMIT 1",
+            (kind,),
+        ).fetchone()
+    else:
+        row = conn.execute(
+            "SELECT * FROM audience_imports ORDER BY id DESC LIMIT 1"
+        ).fetchone()
     return dict(row) if row else None
+
+
+def import_kinds(conn) -> list[dict]:
+    """Latest import per kind, so each list is summarised separately."""
+    rows = conn.execute(
+        """SELECT i.* FROM audience_imports i
+           JOIN (SELECT kind, MAX(id) AS id FROM audience_imports GROUP BY kind) m
+             ON i.id = m.id
+           ORDER BY CASE i.kind WHEN 'followers' THEN 0 WHEN 'following' THEN 1
+                                ELSE 2 END, i.kind"""
+    ).fetchall()
+    return [dict(r) for r in rows]
 
 
 def snapshots_for(conn, handle: str, limit: int = 40) -> list[dict]:

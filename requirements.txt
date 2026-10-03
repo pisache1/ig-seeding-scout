@@ -1,8 +1,8 @@
+# Runtime only — what the container needs. Test tooling lives in
+# requirements-dev.txt so it stays out of the deployed image.
 fastapi>=0.115
 uvicorn[standard]>=0.30
 jinja2>=3.1
 requests>=2.32
 python-multipart>=0.0.9
 itsdangerous>=2.2
-pytest>=8.0
-httpx>=0.27          # TestClient

@@ -35,7 +35,7 @@ Personal accounts return nothing.
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 cp config.example.json config.json   # then fill it in
 ```
 
@@ -180,6 +180,21 @@ your information -> JSON. The file you want is
 python3 -m app.cli followers followers_1.json     # import + diff vs last time
 python3 -m app.cli screen --limit 100             # which of them are creators
 ```
+
+The export is not one shape but several, and the differences are not
+documented. What a real download actually contains:
+
+| file | where the username is |
+|---|---|
+| `followers_1.json` | a bare object; `string_list_data[].value` |
+| `following.json` | `relationships_following[].title` — **no `value` key at all** |
+| `recently_unfollowed_profiles.json`, follow-request files | a flat list of `label_values` pairs |
+
+Labels in the third shape are localised *and* double-encoded — Instagram
+writes "사용자 이름" as "ì‚¬ìš©ìž ì´ë¦„" — so they are decoded before being
+matched. All five files are read, and each import is tagged with its kind so
+987 accounts you follow are never summarised as 987 followers, and a diff
+only ever compares two imports of the same kind.
 
 This only ever reads *your own* account's list, exported by Meta at your
 request. There is no equivalent for anyone else's followers — no API, and

@@ -1,22 +1,49 @@
-# Render blueprint. The disk is not optional: without it the SQLite file
-# lives in the container filesystem and every deploy wipes the roster,
-# the follower history and the audit of what you already screened.
+# Render blueprint.
+#
+# The disk is not optional. Without it the SQLite file lives in the container
+# filesystem, and every deploy wipes the roster, the follower import history
+# and the record of which followers you already screened. Free plans have no
+# persistent disk, which is why this asks for a paid one.
 services:
   - type: web
     name: seeding-scout
     runtime: docker
-    plan: starter          # free plans have no persistent disk
+    plan: starter
+    region: singapore          # closest Render region to Korea
     healthCheckPath: /healthz
+    autoDeployTrigger: commit
+
     disk:
       name: scout-data
       mountPath: /data
       sizeGB: 1
+
     envVars:
-      - key: SCOUT_PASSWORD      # set this in the dashboard, not here
+      # Set in the Render dashboard — never in this file.
+      - key: SCOUT_PASSWORD
         sync: false
-      - key: SCOUT_SECRET_KEY    # generate: python3 -c "import secrets;print(secrets.token_urlsafe(32))"
-        sync: false
+
+      # Render generates and stores this; nobody has to see it. Changing it
+      # signs everyone out.
+      - key: SCOUT_SECRET_KEY
+        generateValue: true
+
+      # The session cookie is only sent over TLS. Render terminates TLS, so
+      # this is always on here.
       - key: SCOUT_HTTPS_ONLY
         value: "1"
+
+      # Points SQLite at the mounted disk above.
       - key: SCOUT_DB_PATH
         value: /data/scout.db
+
+      # Only needed once you have a Graph API token. Leave unset otherwise;
+      # the paste and CSV paths work without them.
+      - key: IG_ACCESS_TOKEN
+        sync: false
+      - key: IG_USER_ID
+        sync: false
+      - key: IG_APP_SECRET
+        sync: false
+      - key: IG_VERIFY_TOKEN
+        sync: false

@@ -20,19 +20,21 @@
   </div>
 {% else %}
   <div class="stats" style="margin-bottom:18px">
-    <div class="stat">
-      <div class="k">현재 팔로워</div>
-      <div class="v">{{ "{:,}".format(current.member_count) }}</div>
-      <div class="n">{{ current.taken_at[:10] }}에 올림</div>
-    </div>
+    {% for k in kinds %}
+      <div class="stat">
+        <div class="k">{{ kind_labels.get(k.kind, k.kind) }}</div>
+        <div class="v">{{ "{:,}".format(k.member_count) }}</div>
+        <div class="n">{{ k.taken_at[:10] }}에 올림</div>
+      </div>
+    {% endfor %}
     {% if delta %}
       <div class="stat">
-        <div class="k">신규</div>
+        <div class="k">{{ kind_labels.get(current.kind, current.kind) }} 신규</div>
         <div class="v churn-add">+{{ "{:,}".format(delta.gained|length) }}</div>
         <div class="n">지난번 올린 것 대비</div>
       </div>
       <div class="stat">
-        <div class="k">이탈</div>
+        <div class="k">{{ kind_labels.get(current.kind, current.kind) }} 이탈</div>
         <div class="v churn-lose">−{{ "{:,}".format(delta.lost|length) }}</div>
         <div class="n">유지 {{ "{:,}".format(delta.retained) }}명</div>
       </div>
@@ -52,7 +54,7 @@
   {% if delta %}
     <div class="grid two">
       <div class="surface pad section">
-        <h2 class="churn-add">신규 {{ delta.gained|length }}명</h2>
+        <h2 class="churn-add">새로 들어온 {{ delta.gained|length }}명</h2>
         <p class="sub" style="font-family: var(--mono); font-size: 12px; line-height: 1.9">
           {% for h in delta.gained[:60] %}@{{ h }}{{ ", " if not loop.last }}{% endfor %}
           {% if delta.gained|length > 60 %} 외 {{ delta.gained|length - 60 }}명{% endif %}
@@ -60,7 +62,7 @@
         </p>
       </div>
       <div class="surface pad section">
-        <h2 class="churn-lose">이탈 {{ delta.lost|length }}명</h2>
+        <h2 class="churn-lose">빠져나간 {{ delta.lost|length }}명</h2>
         <p class="sub" style="font-family: var(--mono); font-size: 12px; line-height: 1.9">
           {% for h in delta.lost[:60] %}@{{ h }}{{ ", " if not loop.last }}{% endfor %}
           {% if delta.lost|length > 60 %} 외 {{ delta.lost|length - 60 }}명{% endif %}
@@ -76,11 +78,12 @@
     <div style="padding:16px 20px 2px"><h2 style="margin:0">올린 기록</h2></div>
     <div class="scroll">
     <table>
-      <thead><tr><th>올린 시각</th><th class="num">인원</th><th>파일</th></tr></thead>
+      <thead><tr><th>올린 시각</th><th>종류</th><th class="num">인원</th><th>파일</th></tr></thead>
       <tbody>
         {% for i in imports %}
           <tr>
             <td style="padding-left:16px">{{ i.taken_at[:16].replace("T", " ") }}</td>
+            <td><span class="tag">{{ kind_labels.get(i.kind, i.kind) }}</span></td>
             <td class="num">{{ "{:,}".format(i.member_count) }}</td>
             <td class="muted" style="font: 400 11.5px var(--mono)">{{ i.source }}</td>
           </tr>

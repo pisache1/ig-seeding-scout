@@ -24,7 +24,7 @@ from . import auth
 
 from .config import ROOT, Config
 from .db import (audience_imports, add_audience_import, connect, diff_imports,
-                 latest_import, latest_scores, previous_import, record_request,
+                 import_kinds, latest_import, latest_scores, previous_import, record_request,
                  save_snapshot, screening_counts, set_request_status,
                  snapshots_for, upsert_account)
 from .instagram import InstagramClient, InstagramError
@@ -39,6 +39,14 @@ cfg = Config.load()
 app = FastAPI(title="Seeding Scout")
 app.mount("/static", StaticFiles(directory=str(ROOT / "app" / "static")), name="static")
 templates = Jinja2Templates(directory=str(ROOT / "app" / "templates"))
+
+KIND_LABELS = {
+    "followers": "팔로워",
+    "following": "내가 팔로우",
+    "requests_received": "받은 요청",
+    "requests_sent": "보낸 요청",
+    "unfollowed": "최근 언팔로우",
+}
 
 ECONOMICS_INPUTS = [
     ("product_cogs_usd", "제품 원가 $", "0.5", "시딩 1건당 실제 원가"),
@@ -204,10 +212,11 @@ async def economics(request: Request) -> HTMLResponse:
 async def audience(request: Request) -> HTMLResponse:
     with connect(cfg.db_path) as conn:
         imports = audience_imports(conn)
+        kinds = import_kinds(conn)
         current = latest_import(conn)
         delta = None
         if current:
-            prev = previous_import(conn, current["id"])
+            prev = previous_import(conn, current["id"], current["kind"])
             if prev:
                 delta = diff_imports(conn, current["id"], prev)
         screened, professional = screening_counts(conn)
@@ -217,8 +226,9 @@ async def audience(request: Request) -> HTMLResponse:
         churn = len(delta["lost"]) / (delta["retained"] + len(delta["lost"])) * 100
 
     return _render(request, "audience.html", {
-        "imports": imports, "current": current, "delta": delta,
+        "imports": imports, "kinds": kinds, "current": current, "delta": delta,
         "churn_rate": churn, "screened": screened, "professional": professional,
+        "kind_labels": KIND_LABELS,
     })
 
 
@@ -303,8 +313,9 @@ async def intake_followers(request: Request, file: UploadFile = File(...)) -> HT
     finally:
         Path(path).unlink(missing_ok=True)
 
+    kind = members[0].get("kind", "followers")
     with connect(cfg.db_path) as conn:
-        add_audience_import(conn, members, file.filename or "upload")
+        add_audience_import(conn, members, file.filename or "upload", kind)
     return await audience(request)
 
 

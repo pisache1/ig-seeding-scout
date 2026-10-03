@@ -118,6 +118,15 @@ def cmd_demo(args, cfg: Config) -> None:
     print("\n다음: python3 -m app.cli economics --aov-usd 72 --gross-margin 0.55")
 
 
+KIND_LABELS = {
+    "followers": "팔로워",
+    "following": "내가 팔로우하는 계정",
+    "requests_received": "받은 팔로우 요청",
+    "requests_sent": "보낸 팔로우 요청",
+    "unfollowed": "최근 언팔로우한 계정",
+}
+
+
 def cmd_followers(args, cfg: Config) -> None:
     """Import your own follower list from Meta's export and diff it."""
     from .audience import AudienceError, load_export
@@ -127,12 +136,13 @@ def cmd_followers(args, cfg: Config) -> None:
     except AudienceError as exc:
         sys.exit(f"가져오기 실패: {exc}")
 
+    kind = members[0].get("kind", "followers")
     with connect(cfg.db_path) as conn:
-        import_id = add_audience_import(conn, members, str(args.path))
-        prev = previous_import(conn, import_id)
+        import_id = add_audience_import(conn, members, str(args.path), kind)
+        prev = previous_import(conn, import_id, kind)
         delta = diff_imports(conn, import_id, prev) if prev else None
 
-    print(f"팔로워 {len(members):,}명 가져옴 (import #{import_id})")
+    print(f"{KIND_LABELS.get(kind, kind)} {len(members):,}명 가져옴 (import #{import_id})")
     if not delta:
         print("첫 가져오기입니다. 다음에 다시 넣으면 증감이 나옵니다.")
     else:
