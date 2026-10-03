@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}예산 비교 · Seeding Scout{% endblock %}
+{% block body %}
+
+<section class="masthead">
+  <div class="top">
+    <div>
+      <p class="eyebrow">Campaign economics</p>
+      <h1>예산 비교</h1>
+    </div>
+    <p class="sub">크리에이터 {{ roster_size }}명 기준 · 같은 사람들에게 돈 쓰는 세 가지 방법</p>
+  </div>
+</section>
+
+<form class="surface pad section" method="get">
+  <h2>계산 전제</h2>
+  <div class="fields">
+    {% for name, label, step, note in inputs %}
+      <div>
+        <label for="{{ name }}">{{ label }}</label>
+        <input type="number" step="{{ step }}" id="{{ name }}" name="{{ name }}"
+               value="{{ a[name] }}">
+        {% if note %}<div class="hint">{{ note }}</div>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+  <button class="btn" type="submit">다시 계산</button>
+  <a class="btn ghost" href="/economics">기본값 되돌리기</a>
+  <p class="hint">
+    위쪽 네 칸(원가·배송비·객단가·마진율)은 직접 아시는 값이라 정확합니다.
+    아래 네 칸은 첫 캠페인을 돌려보기 전까지 전부 추정이니, 결과가 나오면 실제 숫자로 바꾸세요.
+    {% if measured %}지금은 {{ measured }}명이 크리에이터에게 받은 실제 도달을 쓰고 있어
+    그 사람들에겐 도달 배수가 적용되지 않습니다.{% endif %}
+  </p>
+</form>
+
+{% if roster_size %}
+<div class="surface">
+  <div class="scroll">
+  <table>
+    <thead><tr>
+      <th>시나리오</th><th class="num">인원</th><th class="num">비용</th>
+      <th class="num">도달<br>(중복 제외)</th><th class="num">참여</th><th class="num">주문</th>
+      <th class="num">매출</th><th class="num">총이익</th><th class="num">ROAS</th>
+      <th class="num">CPM</th><th class="num">CAC</th><th class="num">본전 주문수</th>
+    </tr></thead>
+    <tbody>
+    {% for r in scenarios %}
+      <tr style="--v: var(--v-{{ r.hue }})">
+        <td style="padding-left:16px"><b>{{ r.name }}</b></td>
+        <td class="num">{{ r.creators }}</td>
+        <td class="num">{{ "${:,.0f}".format(r.cost_usd) }}</td>
+        <td class="num">{{ "{:,.0f}".format(r.unique_reach) }}</td>
+        <td class="num">{{ "{:,.0f}".format(r.engagements) }}</td>
+        <td class="num">{{ "%.1f"|format(r.orders) }}</td>
+        <td class="num">{{ "${:,.0f}".format(r.revenue_usd) }}</td>
+        <td class="num" style="color: var(--v-{{ 'seed' if r.gross_profit_usd > 0 else 'excl' }})">
+          {{ "${:,.0f}".format(r.gross_profit_usd) }}</td>
+        <td class="num">{{ "%.2f"|format(r.roas) }}</td>
+        <td class="num">{{ "${:.2f}".format(r.cpm_usd) }}</td>
+        <td class="num">{{ "${:,.0f}".format(r.cac_usd) }}</td>
+        <td class="num">{{ "%.1f"|format(r.breakeven_orders) }}건</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<div class="grid two">
+  {% for r in scenarios %}
+    <div class="surface pad section" style="border-left: 4px solid var(--v-{{ r.hue }})">
+      <h2>{{ r.name }}</h2>
+      {% for n in r.notes %}<p class="sub" style="margin-bottom:4px">· {{ n }}</p>{% endfor %}
+      <p class="hint">
+        주문 {{ "%.1f"|format(r.breakeven_orders) }}건이면 본전입니다 —
+        마진 {{ "{:.0%}".format(a.gross_margin) }}이면 주문 하나가
+        {{ "${:.0f}".format(a.aov_usd * a.gross_margin) }}를 남기니까요.
+      </p>
+    </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="surface empty"><p>평가한 크리에이터가 없어 계산할 게 없습니다.
+  <a href="/intake">계정 추가</a>부터 하세요.</p></div>
+{% endif %}
+{% endblock %}

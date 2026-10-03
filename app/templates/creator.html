@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}@{{ row.handle }} · Seeding Scout{% endblock %}
+{% block body %}
+
+<section class="masthead">
+  <div class="top">
+    <div>
+      <p class="meta">{{ row.tier }} · {{ "크리에이터가 준 수치" if row.data_source == "mediakit" else "API로 수집" }}</p>
+      <h1>@{{ row.handle }}</h1>
+    </div>
+    <p class="sub"><a href="https://instagram.com/{{ row.handle }}"
+       target="_blank" rel="noopener">인스타그램에서 열기 →</a></p>
+  </div>
+</section>
+
+<div class="stats" style="margin-bottom: 18px">
+  <div class="stat">
+    <div class="k">점수</div>
+    <div class="v" style="color: var(--v-{{ row.verdict }})">{{ row.score }}</div>
+    <div class="n">{{ row.verdict_label }}</div>
+  </div>
+  <div class="stat">
+    <div class="k">팔로워</div>
+    <div class="v">{{ "{:,}".format(row.followers or 0) }}</div>
+    <div class="n">티어 하한 {{ "%.1f"|format(row.er_floor) }}%</div>
+  </div>
+  <div class="stat">
+    <div class="k">참여율</div>
+    <div class="v">{{ "%.2f"|format(row.metrics.get('engagement_rate', 0)) }}%</div>
+    <div class="n">게시물당 {{ "{:,.0f}".format(row.metrics.get('median_engagement', 0)) }}</div>
+  </div>
+  <div class="stat">
+    <div class="k">단가</div>
+    <div class="v sm">{{ "${:,.0f}".format(row.est_cost or 0) }}</div>
+    <div class="n">{{ "크리에이터 견적" if row.quoted_rate else "추정값" }}</div>
+  </div>
+  <div class="stat">
+    <div class="k">{{ "실측 CPM" if row.measured_cpm else "도달" }}</div>
+    <div class="v sm">
+      {% if row.measured_cpm %}${{ "%.2f"|format(row.measured_cpm) }}
+      {% elif row.measured_reach %}{{ "{:,.0f}".format(row.measured_reach) }}
+      {% else %}<span class="muted">—</span>{% endif %}
+    </div>
+    <div class="n">{{ "크리에이터가 알려줌" if row.measured_reach else "못 받음" }}</div>
+  </div>
+</div>
+
+<div class="grid two">
+  <div class="surface pad section">
+    <h2>점수 내역</h2>
+    <div class="bars">
+      {% for key, label, cap in components %}
+        <div class="bar">
+          <div class="k">{{ label }}</div>
+          <div class="track">
+            <div class="fill" style="width: {{ 100 * row.breakdown.get(key, 0) / cap }}%"></div>
+          </div>
+          <div class="v">{{ "%.1f"|format(row.breakdown.get(key, 0)) }}/{{ cap }}</div>
+        </div>
+      {% endfor %}
+    </div>
+    {% if penalty %}
+      <p class="hint">여기서 {{ "%.0f"|format(penalty) }}점을 깎았습니다. 이유는 「주의할 점」에 적어뒀습니다.</p>
+    {% endif %}
+  </div>
+
+  <div class="surface pad section">
+    <h2>판정</h2>
+    <p style="margin: 0 0 4px; font-weight: 600; color: var(--v-{{ row.verdict }})">
+      {{ row.verdict_label }}</p>
+    <p class="sub" style="margin-bottom: 14px">{{ row.action_detail }}</p>
+
+    <h2 style="margin-top: 22px">신뢰도</h2>
+    <p style="margin: 0 0 6px">
+      <span class="conf lvl{{ row.confidence.level }}">
+        {% for i in range(3) %}<i class="{{ 'on' if i < row.confidence.level }}"></i>{% endfor %}
+        <em>{{ row.confidence.label }}</em>
+      </span>
+    </p>
+    <p class="hint" style="margin-top:0">
+      {{ row.confidence.why|join(" · ") }}. 점수와는 별개입니다 —
+      숫자가 좋아도 크리에이터 본인이 준 것이면 돈을 걸기 전에 확인하세요.
+    </p>
+
+    <h2 style="margin-top: 22px">주의할 점</h2>
+    {% if row.flag_list %}
+      {% for f in row.flag_list %}
+        <div style="margin-bottom: 10px">
+          <span class="flag {{ f.severity }}" title="{{ f.name }}">{{ f.label }}</span>
+          <div class="hint" style="margin-top: 4px">{{ flag_notes.get(f.name, "") }}</div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="sub">없습니다. 지표상 걸리는 게 없는 계정입니다.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="surface">
+  <div style="padding: 16px 20px 2px"><h2 style="margin:0">평가 이력</h2></div>
+  <div class="scroll">
+  <table>
+    <thead><tr>
+      <th>시각</th><th class="num">점수</th><th class="num">팔로워</th>
+      <th class="num">참여율</th><th>판정</th><th>수집 방법</th>
+    </tr></thead>
+    <tbody>
+      {% for s in history %}
+        <tr style="--v: var(--v-{{ s.verdict }})">
+          <td class="num" style="text-align:left">{{ s.taken_at[:16].replace("T", " ") }}</td>
+          <td class="num">{{ s.score }}</td>
+          <td class="num">{{ "{:,}".format(s.followers or 0) }}</td>
+          <td class="num">{{ "%.2f"|format(s.er) }}%</td>
+          <td class="verdict">{{ s.verdict_label }}</td>
+          <td><span class="tag">{{ s.data_source }}</span></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if history|length == 1 %}
+    <p class="hint" style="padding: 12px 18px">
+      아직 한 번만 평가했습니다. 같은 계정을 다시 평가하면 변화가 여기에 쌓입니다.</p>
+  {% endif %}
+</div>
+{% endblock %}

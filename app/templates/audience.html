@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}내 팔로워 · Seeding Scout{% endblock %}
+{% block body %}
+
+<section class="masthead">
+  <div class="top">
+    <div>
+      <p class="eyebrow">Audience</p>
+      <h1>내 팔로워</h1>
+    </div>
+    <p class="sub">인스타에서 받은 내 계정 목록입니다. 이 컴퓨터에만 저장됩니다</p>
+  </div>
+</section>
+
+{% if not imports %}
+  <div class="surface empty">
+    <p>아직 올린 목록이 없습니다.</p>
+    <p><a href="/intake">계정 추가</a>에서 <code>followers_1.json</code> 을 올리면
+       두 번째부터 팔로워 증감이 보입니다.</p>
+  </div>
+{% else %}
+  <div class="stats" style="margin-bottom:18px">
+    <div class="stat">
+      <div class="k">현재 팔로워</div>
+      <div class="v">{{ "{:,}".format(current.member_count) }}</div>
+      <div class="n">{{ current.taken_at[:10] }}에 올림</div>
+    </div>
+    {% if delta %}
+      <div class="stat">
+        <div class="k">신규</div>
+        <div class="v churn-add">+{{ "{:,}".format(delta.gained|length) }}</div>
+        <div class="n">지난번 올린 것 대비</div>
+      </div>
+      <div class="stat">
+        <div class="k">이탈</div>
+        <div class="v churn-lose">−{{ "{:,}".format(delta.lost|length) }}</div>
+        <div class="n">유지 {{ "{:,}".format(delta.retained) }}명</div>
+      </div>
+      <div class="stat">
+        <div class="k">순증</div>
+        <div class="v">{{ "{:+,}".format(delta.gained|length - delta.lost|length) }}</div>
+        <div class="n">이탈률 {{ "%.1f"|format(churn_rate) }}%</div>
+      </div>
+    {% endif %}
+    <div class="stat">
+      <div class="k">확인한 계정</div>
+      <div class="v sm">{{ "{:,}".format(screened) }}</div>
+      <div class="n">그중 크리에이터 {{ "{:,}".format(professional) }}명</div>
+    </div>
+  </div>
+
+  {% if delta %}
+    <div class="grid two">
+      <div class="surface pad section">
+        <h2 class="churn-add">신규 {{ delta.gained|length }}명</h2>
+        <p class="sub" style="font-family: var(--mono); font-size: 12px; line-height: 1.9">
+          {% for h in delta.gained[:60] %}@{{ h }}{{ ", " if not loop.last }}{% endfor %}
+          {% if delta.gained|length > 60 %} 외 {{ delta.gained|length - 60 }}명{% endif %}
+          {% if not delta.gained %}없음{% endif %}
+        </p>
+      </div>
+      <div class="surface pad section">
+        <h2 class="churn-lose">이탈 {{ delta.lost|length }}명</h2>
+        <p class="sub" style="font-family: var(--mono); font-size: 12px; line-height: 1.9">
+          {% for h in delta.lost[:60] %}@{{ h }}{{ ", " if not loop.last }}{% endfor %}
+          {% if delta.lost|length > 60 %} 외 {{ delta.lost|length - 60 }}명{% endif %}
+          {% if not delta.lost %}없음{% endif %}
+        </p>
+      </div>
+    </div>
+  {% else %}
+    <div class="notice">첫 목록입니다. 다음에 다시 올리면 누가 들어오고 나갔는지 보여줍니다.</div>
+  {% endif %}
+
+  <div class="surface">
+    <div style="padding:16px 20px 2px"><h2 style="margin:0">올린 기록</h2></div>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>올린 시각</th><th class="num">인원</th><th>파일</th></tr></thead>
+      <tbody>
+        {% for i in imports %}
+          <tr>
+            <td style="padding-left:16px">{{ i.taken_at[:16].replace("T", " ") }}</td>
+            <td class="num">{{ "{:,}".format(i.member_count) }}</td>
+            <td class="muted" style="font: 400 11.5px var(--mono)">{{ i.source }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="notice">
+    이 중에 누가 크리에이터인지 가려내려면 인스타 API 토큰이 필요합니다.
+    <pre>python3 -m app.cli screen --limit 100</pre>
+  </div>
+{% endif %}
+{% endblock %}

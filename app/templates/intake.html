@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}계정 추가 · Seeding Scout{% endblock %}
+{% block body %}
+
+<section class="masthead">
+  <div class="top">
+    <div>
+      <p class="eyebrow">Intake</p>
+      <h1>계정 추가</h1>
+    </div>
+    <p class="sub">어느 쪽으로 넣든 같은 기준으로 점수가 매겨집니다</p>
+  </div>
+</section>
+
+<div class="surface pad section">
+  <h2>프로필 붙여넣기</h2>
+  <p class="sub" style="margin-bottom:12px">
+    인스타에서 프로필 맨 위를 복사해 붙여넣으세요. 같은 계정의 게시물을 몇 개 더 붙이면
+    좋아요와 댓글이 평균으로 합쳐집니다. 계정이 여러 개면 사이에 빈 줄을 넣으세요.
+  </p>
+  <form method="post" action="/intake/paste">
+    <textarea name="text" spellcheck="false" placeholder="glow.daily
+1,234 posts   8,432 followers   512 following
+
+glow.daily
+400 likes
+View all 20 comments"></textarea>
+    <button class="btn" type="submit">평가하기</button>
+    <span class="hint">한국어 화면도 읽습니다 — 게시물 892 팔로워 1.2만</span>
+  </form>
+</div>
+
+<div class="grid two">
+  <div class="surface pad section">
+    <h2>크리에이터에게 받은 수치</h2>
+    <p class="sub" style="margin-bottom:12px">
+      미디어킷이나 인사이트 캡처로 받은 숫자를 CSV로 넣으세요.
+      도달(<code>avg_reach</code>)이 들어 있으면 추정 CPM 대신 실제 CPM을 계산합니다.
+    </p>
+    <form method="post" action="/intake/mediakit" enctype="multipart/form-data">
+      <input type="file" name="file" accept=".csv" required>
+      <button class="btn" type="submit">올려서 평가하기</button>
+      <p class="hint">꼭 있어야 하는 열은 handle, followers 둘뿐입니다.</p>
+    </form>
+  </div>
+
+  <div class="surface pad section">
+    <h2>내 팔로워 목록</h2>
+    <p class="sub" style="margin-bottom:12px">
+      인스타 설정 → 계정 센터 → 내 정보 다운로드에서 JSON으로 받으면 들어 있는
+      <code>followers_1.json</code> 입니다. 다시 올릴 때마다 누가 들어오고 나갔는지 보여줍니다.
+    </p>
+    <form method="post" action="/intake/followers" enctype="multipart/form-data">
+      <input type="file" name="file" accept=".json,.txt,.csv" required>
+      <button class="btn" type="submit">목록 올리기</button>
+      <p class="hint">본인 계정 목록만 됩니다. 남의 팔로워 목록은 받을 방법이 없습니다.</p>
+    </form>
+  </div>
+</div>
+{% endblock %}

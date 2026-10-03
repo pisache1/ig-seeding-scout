@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}크리에이터 · Seeding Scout{% endblock %}
+{% block body %}
+
+<section class="masthead">
+  <div class="top">
+    <div>
+      <p class="eyebrow">Roster</p>
+      <h1>크리에이터</h1>
+    </div>
+    <p class="sub">
+      {{ rows|length }}명 평가 완료 · 팔로워 합계 {{ "{:,}".format(summary.total_followers) }}
+      {%- if summary.self_reported %} · 본인 제출 {{ summary.self_reported }}건{% endif %}
+    </p>
+  </div>
+
+  {% if rows %}
+    <div class="composition">
+      {% for key, label in verdicts %}{% if counts[key] %}<i
+        style="width: {{ 100 * counts[key] / rows|length }}%; background: var(--v-{{ key }})"
+        title="{{ label }} {{ counts[key] }}명"></i>{% endif %}{% endfor %}
+    </div>
+    <ul class="legend">
+      {% for key, label in verdicts %}
+        <li class="{{ 'zero' if not counts[key] }}">
+          <i class="dot" style="background: var(--v-{{ key }})"></i>
+          <b>{{ counts[key] }}</b><span>{{ label }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</section>
+
+{% if rows %}
+<div class="surface">
+  <div class="scroll">
+  <table>
+    <thead>
+      <tr class="groups">
+        <th colspan="3">평가</th>
+        <th colspan="2" class="gstart">규모</th>
+        <th colspan="4" class="gstart">성과</th>
+        <th colspan="2" class="gstart">비용</th>
+        <th class="gstart">판정</th>
+      </tr>
+      <tr class="cols">
+        {% macro th(key, label, cls="") %}
+          <th class="{{ cls }}"><a href="?sort={{ key }}{% if sort == key and dir == 'desc' %}&dir=asc{% endif %}"
+            >{{ label }}{% if sort == key %}&nbsp;{{ '↓' if dir == 'desc' else '↑' }}{% endif %}</a></th>
+        {% endmacro %}
+        {{ th("score", "점수") }}
+        <th>계정</th>
+        <th>신뢰도</th>
+        <th class="gstart">티어</th>
+        {{ th("followers", "팔로워", "num") }}
+        {{ th("er", "참여율", "num gstart") }}
+        <th class="num">댓글 비율</th>
+        <th class="num">주당 게시</th>
+        <th class="num">마지막 게시</th>
+        {{ th("cost", "단가", "num gstart") }}
+        <th class="num">CPE</th>
+        <th class="gstart">판정</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for r in rows %}
+      <tr style="--v: var(--v-{{ r.verdict }})">
+        <td class="score"><b>{{ r.score }}</b><i>/100</i></td>
+        <td>
+          <a class="handle" href="/creator/{{ r.handle }}">@{{ r.handle }}</a>
+          {% if r.flag_list %}
+            <div class="flags">
+              {% for f in r.flag_list[:3] %}
+                <span class="flag {{ f.severity }}" title="{{ f.name }}">{{ f.label }}</span>
+              {% endfor %}
+              {% if r.flag_list|length > 3 %}
+                <span class="flag info">+{{ r.flag_list|length - 3 }}</span>
+              {% endif %}
+            </div>
+          {% endif %}
+        </td>
+        <td>
+          <span class="conf lvl{{ r.confidence.level }}" title="{{ r.confidence.why|join(' · ') }}">
+            {% for i in range(3) %}<i class="{{ 'on' if i < r.confidence.level }}"></i>{% endfor %}
+            <em>{{ r.confidence.label }}</em>
+          </span>
+        </td>
+        <td class="gstart"><span class="tag">{{ r.tier }}</span></td>
+        <td class="num">{{ "{:,}".format(r.followers or 0) }}</td>
+        <td class="num gstart">{{ "%.2f"|format(r.metrics.get('engagement_rate', 0)) }}%</td>
+        <td class="num dim">{{ "%.2f"|format(r.metrics.get('comment_ratio', 0)) }}%</td>
+        <td class="num dim">{{ "%.1f"|format(r.metrics.get('posts_per_week', 0)) }}</td>
+        <td class="num dim">{{ "%.0f"|format(r.metrics.get('days_since_last_post', 0)) }}일</td>
+        <td class="num gstart">{{ "${:,.0f}".format(r.est_cost or 0) }}</td>
+        <td class="num dim">{{ "${:.3f}".format(r.cpe) if r.cpe else "—" }}</td>
+        <td class="verdict gstart">{{ r.verdict_label }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% else %}
+<div class="surface empty">
+  <p>아직 평가한 계정이 없습니다.</p>
+  <p><a href="/intake">계정 추가</a>에서 인스타 프로필을 붙여넣으면 바로 점수가 나옵니다.
+     먼저 둘러보시려면 <code>python3 -m app.cli demo</code> 로 샘플을 넣으세요.</p>
+</div>
+{% endif %}
+{% endblock %}

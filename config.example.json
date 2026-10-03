@@ -1,0 +1,35 @@
+{
+  "ig_user_id": "17841400000000000",
+  "access_token": "EAA...",
+  "app_secret": "",
+  "verify_token": "choose-any-random-string",
+  "db_path": "scout.db",
+
+  "brand_keywords": ["스킨케어", "세럼", "skincare", "beauty", "뷰티", "글로우"],
+
+  "media_limit": 25,
+  "stale_days": 21,
+  "max_hashtags": 20,
+
+  "rate_per_k": {
+    "nano": 5.0,
+    "micro": 10.0,
+    "mid": 15.0,
+    "macro": 20.0,
+    "mega": 25.0
+  },
+
+  "assumptions": {
+    "product_cogs_usd": 15.0,
+    "shipping_usd": 5.0,
+    "aov_usd": 60.0,
+    "gross_margin": 0.6,
+    "seeding_post_rate": 0.55,
+    "click_rate": 0.015,
+    "conversion_rate": 0.025,
+    "reach_multiplier": 15.0,
+    "overlap_decay": 0.85
+  },
+
+  "reply_to_dm": true
+}
